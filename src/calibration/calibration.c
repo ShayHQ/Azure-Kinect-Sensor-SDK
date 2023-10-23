@@ -10,6 +10,7 @@
 #include <locale.h> //cJSON.h need this set correctly.
 
 // System dependencies
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -558,7 +559,8 @@ static k4a_result_t read_extrinsic_calibration(calibration_context_t *calibratio
 
         if (K4A_SUCCEEDED(result))
         {
-            result = depthmcu_get_extrinsic_calibration(calibration->depthmcu, json, json_size, &bytes_read);
+
+            //result = depthmcu_get_extrinsic_calibration(calibration->depthmcu, json, json_size, &bytes_read);
         }
 
         if (K4A_SUCCEEDED(result))
@@ -588,7 +590,7 @@ k4a_result_t calibration_create(depthmcu_t depthmcu, calibration_t *calibration_
 {
     calibration_context_t *calibration;
     k4a_result_t result;
-
+    
     RETURN_VALUE_IF_ARG(K4A_RESULT_FAILED, depthmcu == NULL);
     RETURN_VALUE_IF_ARG(K4A_RESULT_FAILED, calibration_handle == NULL);
 
@@ -600,6 +602,42 @@ k4a_result_t calibration_create(depthmcu_t depthmcu, calibration_t *calibration_
         calibration->depthmcu = depthmcu;
 
         result = read_extrinsic_calibration(calibration);
+    }
+
+    if (K4A_SUCCEEDED(result))
+    {
+        result = calibration_create_from_raw(calibration->json,
+                                             calibration->json_size,
+                                             &calibration->depth_calibration,
+                                             &calibration->color_calibration,
+                                             &calibration->gyro_calibration,
+                                             &calibration->accel_calibration);
+    }
+
+    if (K4A_FAILED(result) && *calibration_handle != NULL)
+    {
+        calibration_destroy(*calibration_handle);
+        *calibration_handle = NULL;
+        result = K4A_RESULT_FAILED;
+    }
+
+    return result;
+}
+
+k4a_result_t calibration_manual_create(char* jsonData, calibration_t *calibration_handle)
+{
+    calibration_context_t *calibration;
+    k4a_result_t result;
+
+    RETURN_VALUE_IF_ARG(K4A_RESULT_FAILED, calibration_handle == NULL);
+
+    calibration = calibration_t_create(calibration_handle);
+    result = K4A_RESULT_FROM_BOOL(calibration != NULL);
+
+    if (K4A_SUCCEEDED(result))
+    {
+        calibration->json = jsonData;
+        calibration->json_size = strlen(jsonData) + 1;
     }
 
     if (K4A_SUCCEEDED(result))
